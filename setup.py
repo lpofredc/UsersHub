@@ -23,4 +23,13 @@ setuptools.setup(
         list(open("requirements-common.in", "r"))
         + list(open("requirements-dependencies.in", "r"))
     ),
+    package_data={
+        "app": ["templates/*.html", "templates/*.js"],
+        "app.migrations": ["alembic.ini", "script.py.mako"],
+    },
+    entry_points={
+        "alembic": [
+            "migrations = app.migrations:versions",
+        ],
+    },
 )

@@ -8,6 +8,7 @@ import json
 import logging
 from pkg_resources import iter_entry_points
 from urllib.parse import urlsplit
+from pathlib import Path
 
 from flask import (
     Flask, redirect, url_for,
@@ -42,8 +43,9 @@ def configure_alembic(alembic_config):
 
 
 def create_app():
-    app = Flask(__name__)
-    app.config.from_pyfile("../config/config.py")
+    app = Flask(__name__, static_folder=os.environ.get("USERSHUB_STATIC_FOLDER", "static"))
+    app.config.from_pyfile(os.environ.get("USERSHUB_SETTINGS", "../config/config.py"))
+    app.config.from_prefixed_env(prefix="USERSHUB")
     app.config['APPLICATION_ROOT'] = urlsplit(app.config['URL_APPLICATION']).path or '/'
     if 'SCRIPT_NAME' not in os.environ and app.config['APPLICATION_ROOT'] != '/':
         os.environ['SCRIPT_NAME'] = app.config['APPLICATION_ROOT']
@@ -54,17 +56,13 @@ def create_app():
     db.init_app(app)
     app.config["DB"] = db
 
-    migrate.init_app(app, db, directory='app/migrations')
+    migrate.init_app(app, db, directory=Path(__file__).absolute().parent / 'migrations')
+
+    if "CODE_APPLICATION" not in app.config:
+        app.config["CODE_APPLICATION"] = "UH"
 
     with app.app_context():
         app.jinja_env.globals["url_application"] = app.config["URL_APPLICATION"]
-
-        try:
-            uh_app = Application.query.filter_by(code_application='UH').one()
-        except ProgrammingError:
-            logging.warning("Warning: unable to find UsersHub application, database not yet initialized?")
-        else:
-            app.config["ID_APP"] = uh_app.id_application
 
         if app.config["ACTIVATE_APP"]:
             @app.route("/")
